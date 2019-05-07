@@ -22,46 +22,54 @@ export default (route: Route): Handler => {
   console.log(1)
   const fn = (Req: IM, Res: SR): AP => {
     console.log(2)
-    let exec = async (req: IM, res: SR): AP => {
-      console.log(3)
-      const middleware: any[] = route.middleware || [];
+    try {
+      let exec = async (req: IM, res: SR): AP => {
+        console.log(3)
+        const middleware: any[] = route.middleware || [];
 
-      console.log(4)
-      if (fn.log !== false) {
-        const pinoOptions = process.env.NODE_ENV === 'production' ? {} : {
-          prettyPrint: {
-            levelFirst: true,
-          },
-        };
-        const logger = pino(pinoOptions);
-        middleware.unshift(logger);
-        console.log(5);
+        console.log(4)
+        if (fn.log !== false) {
+          const pinoOptions = process.env.NODE_ENV === 'production' ? {} : {
+            prettyPrint: {
+              levelFirst: true,
+            },
+          };
+          const logger = pino(pinoOptions);
+          middleware.unshift(logger);
+          console.log(5);
+        }
+
+        console.log(6)
+        for (const mw of middleware) { // eslint-disable-line
+          await mw(req, res); // eslint-disable-line
+        }
+        console.log(7)
+
+        return route.handler(req, res);
+      };
+
+      console.log(8)
+
+      if (route.plugins) {
+        exec = route.plugins.reverse().reduce((acc, val): any => val(acc), exec);
       }
 
-      console.log(6)
-      for (const mw of middleware) { // eslint-disable-line
-        await mw(req, res); // eslint-disable-line
+      console.log(9)
+
+      const isAWS: boolean = process.env.LIGHT_ENVIRONMENT === 'aws';
+      if (isAWS) {
+        console.log(11)
+        return AWSServerlessMicro(handleErrors(exec));
       }
-      console.log(7)
-
-      return route.handler(req, res);
-    };
-
-    console.log(8)
-
-    if (route.plugins) {
-      exec = route.plugins.reverse().reduce((acc, val): any => val(acc), exec);
+      console.log(10)
+      return run(Req, Res, handleErrors(exec));
+    } catch (err) {
+      console.log('ERROR')
+      console.log('------------------------------------')
+      console.log(err);
+      console.log('------------------------------------')
     }
-
-    console.log(9)
-
-    const isAWS: boolean = process.env.LIGHT_ENVIRONMENT === 'aws';
-    if (isAWS) {
-      console.log(11)
-      return AWSServerlessMicro(handleErrors(exec));
-    }
-    console.log(10)
-    return run(Req, Res, handleErrors(exec));
+    return (async (req: any, res: any): AP => { res.send('ok') })(Req, Res);
   };
 
   console.log(12)
